@@ -1,3 +1,5 @@
+This is analysis code and ouput for the project Changes in memory function in adults following SARS-CoV-2 infection: findings from the Covid and Cognition online study.
+
 The Analysis was done in R version 4.3.1 (R Core Team, 2023) and JASP version 0.18.3 (JASP Team, 2024)
 
 R was used for data cleaning and organisation, frequentist analyses, creating csv files for individual analyses in JASP, generating figures for the manuscript
