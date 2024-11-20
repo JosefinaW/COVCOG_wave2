@@ -35,7 +35,7 @@ library(naniar)
 library(cowplot)
 library(naniar)
 
-df<- read_csv("COVCOG_data_140524.csv") #loading data
+df<- read_csv("COVCOG_data_140524_2.csv") #loading data
 #View(df) #checking the csv was corectly parsed
 excl <- df %>% dplyr::select(starts_with("Q2.04")) #subsetting columns relevant to exclusion criteria
 
@@ -48,7 +48,7 @@ neurod_dis <- neurod_dis[c(2:10,12:17)]
 noncov_dis<-unique(excl$Q2.04.1NonCOVIDMedical_Specify)
 noncov_dis <- noncov_dis[9:11]
 df_cl <- df %>% subset(!(Q2.04.23OtherMentalPsychiatric_Specify %in% psych_dis)) %>% subset(!(Q2.04.25Neurodevelopmental_Specify %in% neurod_dis)) %>% subset(!(Q2.04.1NonCOVIDMedical_Specify %in% noncov_dis))
-nrow(df_cl) #getting final number of rows, should get 296
+nrow(df_cl) #getting final number of rows = 296
 
 table(df_cl$COVID_Grouping) #group numbers
 #setting variable types
@@ -272,20 +272,6 @@ df_cl$TimeSinceLastInf <- ifelse(df_cl$Q3.06COVIDTimes_Quantised == 1, difftime(
 is.na(df_cl$TimeSinceLastInf)<- df_cl$DateFirstCovid<"2020-01-01" #assigning NAs to dates that predate the spread of the pandemic - first reported patient outside of China was on 13 January 2020
 is.na(df_cl$TimeSinceLastInf)<- df_cl$TimeSinceLastInf<0 # assigning NAs if the time since infection is negative - i.e. participant put date of most recent infection after date of data collection
 
-#categorising Time Since Infection so that it can be analysed within ANCOVA
-quantile(mod_data$TimeSinceLastInf,na.rm=TRUE)
-
-mod_data$TimeSinceLastInfCat <- ifelse(mod_data$TimeSinceLastInf<= 84, 1, 
-                                       ifelse(mod_data$TimeSinceLastInf > 84 & mod_data$TimeSinceLastInf <=197,2,
-                                              ifelse(mod_data$TimeSinceLastInf > 197 & mod_data$TimeSinceLastInf<=443,3,
-                                                     ifelse(mod_data$TimeSinceLastInf >443 & mod_data$TimeSinceLastInf <= 941,4,NA))))
-
-write.csv(mod_data, "COVCOG_wave2_tSinceInfCat.csv")
-
-#calculate how many rows there are for each cognitive variable for the time since infection analysis
-numbersTimSInf<-mod_data %>% drop_na(TimeSinceLastInfCat)
-data.frame(colSums(!is.na(numbersTimSInf)))
-
 #vaccination but with combined memory tasks z scores
 df_vacc_all_expl<-df_vacc_all
 df_vacc_all_expl$VMemoryAsso_CorrectPercent<-scale(df_vacc_all_expl$VMemoryAsso_CorrectPercent, center = TRUE, scale=TRUE)
@@ -339,6 +325,21 @@ mod_data[cols_all] <- sapply(mod_data[cols_all], scale, center=TRUE,scale=TRUE)
 #file for the analysis of depression and anxiety as covariates and the analysis of memory task RTs for Analysis 2 and for check of additional registered analyses without outliers
 write.csv(mod_data, "COVCOG_wave2_extended.csv")
 
+#categorising Time Since Infection so that it can be analysed within ANCOVA
+quantile(mod_data$TimeSinceLastInf,na.rm=TRUE)
+
+mod_data$TimeSinceLastInfCat <- ifelse(mod_data$TimeSinceLastInf<= 84, 1, 
+                                       ifelse(mod_data$TimeSinceLastInf > 84 & mod_data$TimeSinceLastInf <=197,2,
+                                              ifelse(mod_data$TimeSinceLastInf > 197 & mod_data$TimeSinceLastInf<=443,3,
+                                                     ifelse(mod_data$TimeSinceLastInf >443 & mod_data$TimeSinceLastInf <= 941,4,NA))))
+
+write.csv(mod_data, "COVCOG_wave2_tSinceInfCat.csv")
+
+#calculate how many rows there are for each cognitive variable for the time since infection analysis
+numbersTimSInf<-mod_data %>% drop_na(TimeSinceLastInfCat)
+data.frame(colSums(!is.na(numbersTimSInf)))
+
+
 #plotting the RTs for memory tasks after outlier removal
 mod_data$COVID_Grouping <- as.factor(mod_data$COVID_Grouping)
 df_allMemRT <- pivot_longer(mod_data, cols=c(VMemoryAsso_RTOverall,VMemoryRecog_RTOverall,NVMemoryRecog_RTOverall,NVMemoryAsso_RTOverall),
@@ -382,9 +383,9 @@ write.csv(df_allMem,"COVCOG_wave2_explorative_reanalysis5.csv")
 mod_data_nosc$log_CF_rep <- log(mod_data_nosc$CF_repititions + 1)
 mod_data_nosc$log_DS_Score <- log(mod_data_nosc$DS_Score + 1)
 mod_data_nosc$log_DS_MaxSpan <- log(mod_data_nosc$DS_MaxSpan + 1)
-#add the TimeSinceInfection column for the Time since infection analysis
-TimeSI <- mod_data %>% dplyr::select(Participant_Private_ID,TimeSinceLastInfCat)
-mod_data_nosc <- merge(mod_data_nosc, TimeSI, by = "Participant_Private_ID")
+# #add the TimeSinceInfection column for the Time since infection analysis
+# TimeSI <- mod_data %>% dplyr::select(Participant_Private_ID,TimeSinceLastInfCat)
+# mod_data_nosc <- merge(mod_data_nosc, TimeSI, by = "Participant_Private_ID")
 #write the csv for analysis of the log transformed columns
 write.csv(mod_data_nosc,"COVCOG2_wave2_logtrans.csv")
 
@@ -410,19 +411,18 @@ selfMemory <- df_cl %>% dplyr::select(Participant_Private_ID, Q4.01.105SpatialMe
 MemTests <- mod_data_nosc %>%dplyr::select(Participant_Private_ID,COVID_Grouping,Q1.01Age_Text,VMemoryAsso_CorrectPercent,VMemoryRecog_CorrectPercent,NVMemoryRecog_CorrectPercent,NVMemoryAsso_CorrectPercent)
 onlyMemAcc <- merge(MemTests, selfMemory, by = "Participant_Private_ID")
 
-#Does self-report differ between groups
-ggplot(onlyMemAcc, aes(x=`self-report long-term memory 1-2d prior`, fill = COVID_Grouping)) + geom_density()
+onlyMemAcc$COVID_Grouping <- as.factor(onlyMemAcc$COVID_Grouping)
 
 result <- onlyMemAcc %>%
   group_by(COVID_Grouping) %>%
-  dplyr::summarize(spatial_3w = mean(`self-report spatial memory 3w post`, na.rm = TRUE),
-                   spatial_1to2days = mean(`self-report spatial memory 1-2d prior`, na.rm = TRUE),
-                   short_3w = mean(`self-report short-term memory 3w post `,na.rm = T),
-                   short_1to2days = mean(`self-report short-term memory 1-2d prior `,na.rm=T),
-                   medium_3w = mean(`self-report medium-term memory 3w post`,na.rm=T),
-                   medium_1to2days = mean(`self-report medium-term memory 1-2d prior `,na.rm=T),
-                   long_3w = mean(`self-report long-term memory 3w post`,na.rm=T),
-                   long_1to2days = mean(`self-report long-term memory 1-2d prior`,na.rm=T))
+  dplyr::summarize(spatial_3w = mean(Q4.11.105SpatialMemoryProblem_Quantised, na.rm = TRUE),
+                   spatial_1to2days = mean(Q4.13.105SpatialMemoryProblem_Quantised, na.rm = TRUE),
+                   short_3w = mean(Q4.11.106ShortTermEventMemory_Quantised,na.rm = T),
+                   short_1to2days = mean(Q4.13.106ShortTermEventMemory_Quantised,na.rm=T),
+                   medium_3w = mean(Q4.11.107MediumTermEventMemory_Quantised,na.rm=T),
+                   medium_1to2days = mean(Q4.13.107MediumTermEventMemory_Quantised,na.rm=T),
+                   long_3w = mean(Q4.11.108LongTermEventMemory_Quantised,na.rm=T),
+                   long_1to2days = mean(Q4.13.108LongTermEventMemory_Quantised,na.rm=T))
 
 print(result)
 result_piv <- pivot_longer(result, cols=c(spatial_3w,spatial_1to2days, short_3w,short_1to2days,medium_3w,medium_1to2days,long_3w,long_1to2days),         
@@ -444,14 +444,8 @@ ggplot(result_piv, aes(y=Mean_mem, x=Self_rep, colour=COVID_Grouping)) + geom_po
   ))
 
 
-#some descriptives
-colnames(df_cl)
-nrow(df_cl)
-df_COV <- df_cl%>%filter(COVID_Grouping==1)
-table(df_COV$Q3.06COVIDTimes_Quantised)
 
-#update library dependencies
-renv::snapshot()
+
 
 #grid
 # column names without the "self-report" mentioned for shorter labels
@@ -714,44 +708,13 @@ p_diff_RT_ad <-matrix(p_diff_RT_ad, nrow = nrow(p_diff_RT), ncol = ncol(p_diff_R
 rownames(p_diff_RT_ad) <- rownames(p_diff_RT)
 colnames(p_diff_RT_ad) <- colnames(p_diff_RT)
 
-ggcorrplot(p_diff_RT_ad, p.mat = p_diff_RT_ad, type="upper",insig="blank",lab=TRUE,ggtheme = ggplot2::theme_bw) + ggtitle("Z scores of differences between correlations in the Covid and No-Covid group") + 
+ggcorrplot(z_diff_RT, p.mat = p_diff_RT_ad, type="upper",insig="blank",lab=TRUE,ggtheme = ggplot2::theme_bw) + ggtitle("Z scores of differences between correlations in the Covid and No-Covid group") + 
   theme(plot.title = element_blank(), 
         axis.text.x = element_text(size = 13),  # Adjust x-axis text size
         axis.text.y = element_text(size=13),
         legend.text=element_blank())  # Adjust these values
 
 
-#Does self-report differ between groups - plot
-result <- onlyMemAcc %>%
-  group_by(COVID_Grouping) %>%
-  dplyr::summarize(spatial_3w = mean(`self-report spatial memory 3w post`, na.rm = TRUE),
-            spatial_1to2days = mean(`self-report spatial memory 1-2d prior`, na.rm = TRUE),
-            short_3w = mean(`self-report short-term memory 3w post `,na.rm = T),
-            short_1to2days = mean(`self-report short-term memory 1-2d prior `,na.rm=T),
-            medium_3w = mean(`self-report medium-term memory 3w post`,na.rm=T),
-            medium_1to2days = mean(`self-report medium-term memory 1-2d prior `,na.rm=T),
-            long_3w = mean(`self-report long-term memory 3w post`,na.rm=T),
-            long_1to2days = mean(`self-report long-term memory 1-2d prior`,na.rm=T))
-
-print(result)
-result_piv <- pivot_longer(result, cols=c(spatial_3w,spatial_1to2days, short_3w,short_1to2days,medium_3w,medium_1to2days,long_3w,long_1to2days),         
-                            names_to = "Self_rep",
-                            values_to = "Mean_mem",
-                            values_drop_na = TRUE)
-result_piv$COVID_Grouping <- as.factor(result_piv$COVID_Grouping)
-ggplot(result_piv, aes(y=Mean_mem, x=Self_rep, colour=COVID_Grouping)) + geom_point(size=6,shape=17) + theme_cowplot(12) +
-  labs(title="Mean self-report ratings of memory by Covid status", y="Mean memory rating (scale 1-7)",x="Self-report memory type/time period", color="Covid group") + scale_color_manual(values=cbPalette,labels=c("No-Covid", "Covid")) +
-  theme(plot.title = element_blank(), legend.title = element_text(size =18,face="bold"),legend.text = element_text(size = 17), axis.title=element_text(size=18,face="bold"), axis.text.x=element_text(size=17),axis.text.y=element_text(size=17)) + 
-  scale_x_discrete(labels = c(
-    "long-term memory\n1-2d prior", 
-    "long-term memory\n3w post", 
-    "medium-term memory\n1-2d prior", 
-    "medium-term memory\n3w post", 
-    "short-term memory\n1-2d prior", 
-    "short-term memory\n3w post", 
-    "spatial memory\n1-2d prior", 
-    "spatial memory\n3w post"
-  ))
 
 #update library dependencies
 #renv::snapshot()
